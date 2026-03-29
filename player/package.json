@@ -1,0 +1,14 @@
+{
+  "name": "videohost-pro-player",
+  "version": "1.0.0",
+  "description": "Embeddable video player web component",
+  "scripts": {
+    "build": "node build.js"
+  },
+  "dependencies": {
+    "hls.js": "^1.5.13"
+  },
+  "devDependencies": {
+    "esbuild": "^0.21.5"
+  }
+}

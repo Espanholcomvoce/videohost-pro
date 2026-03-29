@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Meus Vídeos - VideoHost Pro</title>
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+  <nav class="nav">
+    <div class="nav-logo">🎬 VideoHost Pro</div>
+    <div class="nav-links">
+      <a href="/dashboard/" class="active">Vídeos</a>
+      <a href="/dashboard/upload.html">Upload</a>
+      <a href="/dashboard/analytics.html">Analytics</a>
+      <a href="/dashboard/index.html?trash=1">Lixeira</a>
+    </div>
+    <div class="nav-user">
+      <button onclick="logout()">Sair</button>
+    </div>
+  </nav>
+
+  <div class="container">
+    <div class="page-header">
+      <h1 id="page-title">Meus Vídeos</h1>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-secondary btn-sm" onclick="showNewFolder()">📁 Nova Pasta</button>
+      </div>
+    </div>
+
+    <div class="filter-bar">
+      <input type="text" id="search" placeholder="Buscar vídeos..." oninput="debouncedLoad()">
+      <select id="folder-filter" onchange="loadVideos()">
+        <option value="">Todas as pastas</option>
+      </select>
+      <select id="status-filter" onchange="loadVideos()">
+        <option value="">Todos os status</option>
+        <option value="ready">Pronto</option>
+        <option value="processing">Processando</option>
+        <option value="pending">Pendente</option>
+        <option value="error">Erro</option>
+      </select>
+    </div>
+
+    <div id="video-grid" class="card-grid"></div>
+    <div id="empty-state" class="empty-state" style="display:none">
+      <div class="icon">🎬</div>
+      <h3>Nenhum vídeo ainda</h3>
+      <p>Faça upload do seu primeiro vídeo para começar</p>
+      <a href="/dashboard/upload.html" class="btn btn-primary" style="margin-top:16px">Fazer Upload</a>
+    </div>
+    <div id="pagination" class="pagination"></div>
+  </div>
+
+  <a href="/dashboard/upload.html" class="fab" title="Novo Vídeo">+</a>
+
+  <script src="assets/app.js"></script>
+  <script>
+    let currentPage = 1;
+    const isTrash = new URLSearchParams(window.location.search).get('trash') === '1';
+
+    if (isTrash) {
+      document.getElementById('page-title').textContent = 'Lixeira';
+      document.querySelector('.filter-bar').style.display = 'none';
+    }
+
+    const debouncedLoad = debounce(() => loadVideos(), 300);
+
+    async function loadVideos() {
+      const search = document.getElementById('search')?.value || '';
+      const folder = document.getElementById('folder-filter')?.value || '';
+      const status = document.getElementById('status-filter')?.value || '';
+
+      let url = `/api/videos?page=${currentPage}&limit=20`;
+      if (search) url += `&search=${encodeURIComponent(search)}`;
+      if (folder) url += `&folder_id=${folder}`;
+      if (status) url += `&status=${status}`;
+      if (isTrash) url = '/api/videos/trash';
+
+      try {
+        const data = isTrash ? await api('GET', url) : await api('GET', url);
+        const videos = isTrash ? data : data.videos;
+        const grid = document.getElementById('video-grid');
+        const empty = document.getElementById('empty-state');
+
+        if (!videos || videos.length === 0) {
+          grid.innerHTML = '';
+          empty.style.display = 'block';
+          return;
+        }
+        empty.style.display = 'none';
+
+        grid.innerHTML = videos.map(v => `
+          <div class="video-card" onclick="goToEditor('${v.id}')">
+            <div class="video-thumb">
+              ${v.thumbnail_url ? `<img src="${v.thumbnail_url}" alt="${v.title}">` : '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#555;font-size:32px">🎬</div>'}
+              ${v.duration_seconds ? `<span class="duration">${formatDuration(v.duration_seconds)}</span>` : ''}
+              <div class="video-actions">
+                <button class="video-menu-btn" onclick="event.stopPropagation();toggleMenu('${v.id}')">⋯</button>
+                <div class="video-menu" id="menu-${v.id}">
+                  ${isTrash ? `
+                    <a href="#" onclick="event.preventDefault();restoreVideo('${v.id}')">♻️ Restaurar</a>
+                    <a href="#" class="danger" onclick="event.preventDefault();permanentDelete('${v.id}')">🗑 Excluir definitivamente</a>
+                  ` : `
+                    <a href="/dashboard/editor.html?id=${v.id}">✏️ Editar</a>
+                    <a href="/dashboard/analytics.html?id=${v.id}">📊 Analytics</a>
+                    <a href="#" onclick="event.preventDefault();showEmbed('${v.id}')">📋 Embed Code</a>
+                    <a href="#" onclick="event.preventDefault();duplicateVideo('${v.id}')">📄 Duplicar</a>
+                    <a href="#" class="danger" onclick="event.preventDefault();deleteVideo('${v.id}')">🗑 Excluir</a>
+                  `}
+                </div>
+              </div>
+            </div>
+            <div class="video-info">
+              <h3>${v.title || 'Sem título'}</h3>
+              <div class="video-meta">
+                <span class="badge badge-${v.status}">${v.status}</span>
+                <span>${formatNumber(v.views || 0)} views</span>
+                <span>${formatDate(v.created_at)}</span>
+              </div>
+            </div>
+          </div>
+        `).join('');
+
+        // Pagination
+        if (!isTrash && data.pages > 1) {
+          const pag = document.getElementById('pagination');
+          let html = '';
+          for (let i = 1; i <= data.pages; i++) {
+            html += `<button class="${i === currentPage ? 'active' : ''}" onclick="currentPage=${i};loadVideos()">${i}</button>`;
+          }
+          pag.innerHTML = html;
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    function goToEditor(id) {
+      if (!isTrash) window.location.href = `/dashboard/editor.html?id=${id}`;
+    }
+
+    function toggleMenu(id) {
+      document.querySelectorAll('.video-menu').forEach(m => m.classList.remove('show'));
+      document.getElementById(`menu-${id}`)?.classList.toggle('show');
+    }
+
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('.video-menu-btn')) {
+        document.querySelectorAll('.video-menu').forEach(m => m.classList.remove('show'));
+      }
+    });
+
+    function showEmbed(id) {
+      const code = getEmbedCode(id);
+      const speed = getSpeedCode(id);
+      showModal('Embed Code', `
+        <p style="margin-bottom:8px;font-size:13px;color:var(--text-muted)">Código Normal:</p>
+        <pre>${code.replace(/</g, '&lt;')}</pre>
+        <button class="btn btn-sm btn-primary" style="margin-top:8px" onclick="copyToClipboard(\`${code.replace(/`/g, '\\`')}\`)">Copiar</button>
+        <hr style="border-color:var(--border);margin:16px 0">
+        <p style="margin-bottom:8px;font-size:13px;color:var(--text-muted)">Speed Code (com preload):</p>
+        <pre>${speed.replace(/</g, '&lt;')}</pre>
+        <button class="btn btn-sm btn-secondary" style="margin-top:8px" onclick="copyToClipboard(\`${speed.replace(/`/g, '\\`')}\`)">Copiar Speed Code</button>
+      `);
+    }
+
+    async function duplicateVideo(id) {
+      await api('POST', `/api/videos/${id}/duplicate`);
+      showToast('Vídeo duplicado!');
+      loadVideos();
+    }
+
+    async function deleteVideo(id) {
+      if (!confirm('Mover para a lixeira?')) return;
+      await api('DELETE', `/api/videos/${id}`);
+      showToast('Movido para lixeira');
+      loadVideos();
+    }
+
+    async function restoreVideo(id) {
+      await api('POST', `/api/videos/${id}/restore`);
+      showToast('Restaurado!');
+      loadVideos();
+    }
+
+    async function permanentDelete(id) {
+      if (!confirm('Excluir PERMANENTEMENTE? Isso não pode ser desfeito.')) return;
+      await api('DELETE', `/api/videos/${id}/permanent`);
+      showToast('Excluído permanentemente');
+      loadVideos();
+    }
+
+    function showNewFolder() {
+      const name = prompt('Nome da pasta:');
+      if (name) {
+        api('POST', '/api/folders', { name }).then(() => { showToast('Pasta criada!'); loadFolders(); });
+      }
+    }
+
+    async function loadFolders() {
+      const folders = await api('GET', '/api/folders');
+      const select = document.getElementById('folder-filter');
+      if (select) {
+        select.innerHTML = '<option value="">Todas as pastas</option>' +
+          folders.map(f => `<option value="${f.id}">${f.name} (${f.video_count})</option>`).join('');
+      }
+    }
+
+    async function logout() {
+      await api('POST', '/api/auth/logout');
+      window.location.href = '/dashboard/login.html';
+    }
+
+    loadFolders();
+    loadVideos();
+  </script>
+</body>
+</html>

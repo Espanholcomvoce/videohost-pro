@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Editor - VideoHost Pro</title>
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+  <nav class="nav">
+    <div class="nav-logo">🎬 VideoHost Pro</div>
+    <div class="nav-links">
+      <a href="/dashboard/">Vídeos</a>
+      <a href="/dashboard/upload.html">Upload</a>
+      <a href="/dashboard/analytics.html">Analytics</a>
+    </div>
+    <div class="nav-user">
+      <button onclick="fetch('/api/auth/logout',{method:'POST',credentials:'include'}).then(()=>location.href='/dashboard/login.html')">Sair</button>
+    </div>
+  </nav>
+
+  <div class="container">
+    <div class="page-header">
+      <div style="display:flex;align-items:center;gap:12px">
+        <a href="/dashboard/" class="btn btn-secondary btn-sm">← Voltar</a>
+        <input type="text" id="video-title" style="background:transparent;border:none;font-size:22px;font-weight:600;color:var(--text);width:300px" placeholder="Título do vídeo">
+        <span id="status-badge" class="badge"></span>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-secondary btn-sm" onclick="showEmbedModal()">📋 Embed Code</button>
+        <a id="analytics-link" href="#" class="btn btn-secondary btn-sm">📊 Analytics</a>
+      </div>
+    </div>
+
+    <div class="editor-layout">
+      <div>
+        <div class="tabs" id="editor-tabs">
+          <div class="tab active" data-tab="playback">Reprodução</div>
+          <div class="tab" data-tab="smartplay">SmartPlay</div>
+          <div class="tab" data-tab="cta">CTAs</div>
+          <div class="tab" data-tab="popups">Pop-ups</div>
+          <div class="tab" data-tab="engagement">Engajamento</div>
+          <div class="tab" data-tab="appearance">Aparência</div>
+          <div class="tab" data-tab="security">Segurança</div>
+          <div class="tab" data-tab="pixels">Pixels</div>
+          <div class="tab" data-tab="abtest">Teste A/B</div>
+        </div>
+
+        <!-- Playback Tab -->
+        <div class="tab-content active" id="tab-playback">
+          <div class="card">
+            <div class="form-group checkbox-group">
+              <input type="checkbox" id="cfg-autoplay" onchange="saveConfig()"><label for="cfg-autoplay">Autoplay</label>
+            </div>
+            <div class="form-group checkbox-group">
+              <input type="checkbox" id="cfg-muted" onchange="saveConfig()"><label for="cfg-muted">Iniciar mutado</label>
+            </div>
+            <div class="form-group checkbox-group">
+              <input type="checkbox" id="cfg-loop" onchange="saveConfig()"><label for="cfg-loop">Loop (repetir)</label>
+            </div>
+            <div class="form-group">
+              <label>Thumbnail / Poster (URL)</label>
+              <input type="url" id="cfg-thumbnail" placeholder="https://..." oninput="debouncedSave()">
+            </div>
+            <div class="form-group">
+              <label>Velocidades disponíveis</label>
+              <div style="display:flex;gap:8px;flex-wrap:wrap">
+                <label class="checkbox-group"><input type="checkbox" value="0.75" class="speed-check" onchange="saveConfig()"> 0.75x</label>
+                <label class="checkbox-group"><input type="checkbox" value="1" class="speed-check" checked onchange="saveConfig()"> 1x</label>
+                <label class="checkbox-group"><input type="checkbox" value="1.25" class="speed-check" onchange="saveConfig()"> 1.25x</label>
+                <label class="checkbox-group"><input type="checkbox" value="1.5" class="speed-check" onchange="saveConfig()"> 1.5x</label>
+                <label class="checkbox-group"><input type="checkbox" value="2" class="speed-check" onchange="saveConfig()"> 2x</label>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- SmartPlay Tab -->
+        <div class="tab-content" id="tab-smartplay">
+          <div class="card">
+            <div class="form-group checkbox-group">
+              <input type="checkbox" id="cfg-smart_autoplay" onchange="saveConfig()"><label for="cfg-smart_autoplay">Smart Autoplay (inicia quando visível)</label>
+            </div>
+            <div class="form-group">
+              <label>Modo da barra de progresso</label>
+              <select id="cfg-progress_bar_mode" onchange="saveConfig()">
+                <option value="normal">Normal (seeking habilitado)</option>
+                <option value="accelerated">Acelerado visual (sem seeking)</option>
+                <option value="returning_only">Só para retornantes</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Cor da barra de progresso</label>
+              <input type="color" id="cfg-progress_bar_color" value="#6C5CE7" onchange="saveConfig()">
+            </div>
+            <div class="form-group checkbox-group">
+              <input type="checkbox" id="cfg-focused_fullscreen" onchange="saveConfig()"><label for="cfg-focused_fullscreen">Focused Fullscreen (expande ao dar play)</label>
+            </div>
+            <hr style="border-color:var(--border);margin:16px 0">
+            <div class="form-group checkbox-group">
+              <input type="checkbox" id="cfg-seek_disabled" onchange="saveConfig()"><label for="cfg-seek_disabled">Desabilitar seeking (pular)</label>
+            </div>
+            <div class="form-group">
+              <label>Desabilitar seeking apenas até (segundos)</label>
+              <input type="number" id="cfg-seek_disabled_until_seconds" min="0" placeholder="0 = sempre" oninput="debouncedSave()">
+            </div>
+            <div class="form-group">
+              <label>Texto de aviso ao tentar pular</label>
+              <input type="text" id="cfg-skip_warning_text" placeholder="Não pule! A parte mais importante está chegando" oninput="debouncedSave()">
+            </div>
+            <hr style="border-color:var(--border);margin:16px 0">
+            <div class="form-group checkbox-group">
+              <input type="checkbox" id="cfg-continue_watching_enabled" onchange="saveConfig()"><label for="cfg-continue_watching_enabled">Continuar assistindo (salva posição)</label>
+            </div>
+          </div>
+        </div>
+
+        <!-- CTA Tab -->
+        <div class="tab-content" id="tab-cta">
+          <div class="card">
+            <div class="form-group checkbox-group">
+              <input type="checkbox" id="cfg-cta_enabled" onchange="saveConfig()"><label for="cfg-cta_enabled">Botão CTA ativado</label>
+            </div>
+            <div class="form-group">
+              <label>Texto do botão</label>
+              <input type="text" id="cfg-cta_text" placeholder="Clique aqui para saber mais" oninput="debouncedSave()">
+            </div>
+            <div class="form-group">
+              <label>URL de destino</label>
+              <input type="url" id="cfg-cta_url" placeholder="https://..." oninput="debouncedSave()">
+            </div>
+            <div class="form-group">
+              <label>Cor do botão</label>
+              <input type="color" id="cfg-cta_color" value="#6C5CE7" onchange="saveConfig()">
+            </div>
+            <div class="form-group">
+              <label>Aparecer aos (segundos)</label>
+              <input type="number" id="cfg-cta_time_seconds" min="0" oninput="debouncedSave()">
+            </div>
+            <div class="form-group">
+              <label>Comportamento do clique</label>
+              <select id="cfg-cta_behavior" onchange="saveConfig()">
+                <option value="new_tab">Abrir nova aba</option>
+                <option value="redirect">Redirecionar</option>
+              </select>
+            </div>
+            <div class="form-group checkbox-group">
+              <input type="checkbox" id="cfg-cta_scroll_enabled" onchange="saveConfig()"><label for="cfg-cta_scroll_enabled">Scroll automático até o CTA</label>
+            </div>
+            <hr style="border-color:var(--border);margin:16px 0">
+            <div class="form-group">
+              <label>Delay de elementos da página (segundos)</label>
+              <input type="number" id="cfg-elements_delay_seconds" min="0" placeholder="Revela .ecv-hide após X segundos" oninput="debouncedSave()">
+              <small style="color:var(--text-muted);font-size:11px">Elementos com classe .ecv-hide serão revelados neste tempo</small>
+            </div>
+          </div>
+        </div>
+
+        <!-- Popups Tab -->
+        <div class="tab-content" id="tab-popups">
+          <div class="card">
+            <div class="form-group checkbox-group">
+              <input type="checkbox" id="cfg-popup_enabled" onchange="saveConfig()"><label for="cfg-popup_enabled">Pop-up ativado</label>
+            </div>
+            <div class="form-group">
+              <label>Aparecer aos (segundos)</label>
+              <input type="number" id="popup-time" min="0" oninput="debouncedSave()">
+            </div>
+            <div class="form-group">
+              <label>Texto</label>
+              <textarea id="popup-text" oninput="debouncedSave()"></textarea>
+            </div>
+            <div class="form-group">
+              <label>URL da imagem (opcional)</label>
+              <input type="url" id="popup-image" oninput="debouncedSave()">
+            </div>
+            <div class="form-group">
+              <label>Texto do botão (opcional)</label>
+              <input type="text" id="popup-btn-text" oninput="debouncedSave()">
+            </div>
+            <div class="form-group">
+              <label>URL do botão</label>
+              <input type="url" id="popup-btn-url" oninput="debouncedSave()">
+            </div>
+            <div class="form-group">
+              <label>Fechar automaticamente após (segundos, 0 = manual)</label>
+              <input type="number" id="popup-autoclose" min="0" oninput="debouncedSave()">
+            </div>
+          </div>
+        </div>
+
+        <!-- Engagement Tab -->
+        <div class="tab-content" id="tab-engagement">
+          <div class="card">
+            <h3 style="margin-bottom:12px">Contador de visualizações</h3>
+            <div class="form-group">
+              <label>Número de "assistindo agora" (0 = desativado)</label>
+              <input type="number" id="cfg-fake_views_count" min="0" oninput="debouncedSave()">
+            </div>
+
+            <hr style="border-color:var(--border);margin:20px 0">
+            <h3 style="margin-bottom:12px">Recovery Thumbnail</h3>
+            <div class="form-group checkbox-group">
+              <input type="checkbox" id="cfg-recovery_thumbnail_enabled" onchange="saveConfig()"><label for="cfg-recovery_thumbnail_enabled">Ativado</label>
+            </div>
+            <div class="form-group">
+              <label>URL da thumbnail de recuperação</label>
+              <input type="url" id="cfg-recovery_thumbnail_url" oninput="debouncedSave()">
+            </div>
+            <div class="form-group">
+              <label>Texto sobre a thumbnail</label>
+              <input type="text" id="cfg-recovery_thumbnail_text" placeholder="Continue assistindo" oninput="debouncedSave()">
+            </div>
+
+            <hr style="border-color:var(--border);margin:20px 0">
+            <h3 style="margin-bottom:12px">Comentários falsos</h3>
+            <div id="fake-comments-list" class="item-list"></div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 2fr 1fr auto;gap:8px;margin-top:12px;align-items:end">
+              <div class="form-group" style="margin:0"><label>Nome</label><input type="text" id="fc-name" placeholder="Maria"></div>
+              <div class="form-group" style="margin:0"><label>Avatar URL</label><input type="url" id="fc-avatar" placeholder="(opcional)"></div>
+              <div class="form-group" style="margin:0"><label>Texto</label><input type="text" id="fc-text" placeholder="Incrível!"></div>
+              <div class="form-group" style="margin:0"><label>Tempo (s)</label><input type="number" id="fc-time" min="0" placeholder="30"></div>
+              <button class="btn btn-primary btn-sm" onclick="addFakeComment()">+</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Appearance Tab -->
+        <div class="tab-content" id="tab-appearance">
+          <div class="card">
+            <div class="form-group">
+              <label>Cor primária do player</label>
+              <input type="color" id="cfg-primary_color" value="#6C5CE7" onchange="saveConfig()">
+            </div>
+            <div class="form-group">
+              <label>Tema do player</label>
+              <select id="cfg-skin" onchange="saveConfig()">
+                <option value="dark">Escuro</option>
+                <option value="light">Claro</option>
+              </select>
+            </div>
+            <div class="form-group checkbox-group">
+              <input type="checkbox" id="cfg-show_controls" checked onchange="saveConfig()"><label for="cfg-show_controls">Mostrar controles (velocidade, volume)</label>
+            </div>
+            <hr style="border-color:var(--border);margin:16px 0">
+            <h3 style="margin-bottom:12px">Logo / Marca d'água</h3>
+            <div class="form-group">
+              <label>URL da logo</label>
+              <input type="url" id="cfg-logo_url" oninput="debouncedSave()">
+            </div>
+            <div class="form-group">
+              <label>Posição</label>
+              <select id="cfg-logo_position" onchange="saveConfig()">
+                <option value="top-right">Superior direito</option>
+                <option value="top-left">Superior esquerdo</option>
+                <option value="bottom-right">Inferior direito</option>
+                <option value="bottom-left">Inferior esquerdo</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Opacidade: <span id="opacity-val">0.7</span></label>
+              <input type="range" id="cfg-logo_opacity" min="0.1" max="1" step="0.1" value="0.7" oninput="document.getElementById('opacity-val').textContent=this.value;debouncedSave()">
+            </div>
+          </div>
+        </div>
+
+        <!-- Security Tab -->
+        <div class="tab-content" id="tab-security">
+          <div class="card">
+            <h3 style="margin-bottom:12px">Domínios permitidos</h3>
+            <p style="font-size:13px;color:var(--text-muted);margin-bottom:12px">O vídeo só será reproduzido nestes domínios. Se nenhum for cadastrado, funciona em qualquer domínio. Localhost é sempre permitido.</p>
+            <div id="domains-list" class="item-list"></div>
+            <div style="display:flex;gap:8px;margin-top:12px">
+              <input type="text" id="new-domain" placeholder="meusite.com.br" style="flex:1">
+              <button class="btn btn-primary btn-sm" onclick="addDomain()">Adicionar</button>
+            </div>
+            <hr style="border-color:var(--border);margin:20px 0">
+            <h3 style="margin-bottom:8px">Anti-download</h3>
+            <p style="font-size:13px;color:var(--text-muted)">URLs dos segmentos HLS são protegidas com assinaturas temporárias (expiram em 1 hora). Não há botão de download nativo. As URLs diretas do R2 nunca são expostas ao browser.</p>
+          </div>
+        </div>
+
+        <!-- Pixels Tab -->
+        <div class="tab-content" id="tab-pixels">
+          <div class="card">
+            <h3 style="margin-bottom:12px">Pixels e Integrações</h3>
+            <div id="pixels-list" class="item-list"></div>
+            <hr style="border-color:var(--border);margin:16px 0">
+            <div style="display:grid;grid-template-columns:1fr 2fr;gap:8px;align-items:end">
+              <div class="form-group" style="margin:0">
+                <label>Tipo</label>
+                <select id="px-type">
+                  <option value="meta">Meta Pixel</option>
+                  <option value="ga4">Google Analytics 4</option>
+                  <option value="gtm">Google Tag Manager</option>
+                  <option value="tiktok">TikTok Pixel</option>
+                  <option value="hotmart">Hotmart</option>
+                  <option value="webhook">Webhook</option>
+                </select>
+              </div>
+              <div class="form-group" style="margin:0">
+                <label>ID do Pixel ou URL</label>
+                <input type="text" id="px-id" placeholder="Pixel ID ou URL do webhook">
+              </div>
+            </div>
+            <div class="form-group" style="margin-top:8px">
+              <label>Eventos a disparar</label>
+              <div style="display:flex;gap:8px;flex-wrap:wrap">
+                <label class="checkbox-group"><input type="checkbox" value="play" class="px-event" checked> play</label>
+                <label class="checkbox-group"><input type="checkbox" value="25%" class="px-event"> 25%</label>
+                <label class="checkbox-group"><input type="checkbox" value="50%" class="px-event"> 50%</label>
+                <label class="checkbox-group"><input type="checkbox" value="75%" class="px-event"> 75%</label>
+                <label class="checkbox-group"><input type="checkbox" value="ended" class="px-event" checked> ended</label>
+                <label class="checkbox-group"><input type="checkbox" value="cta_click" class="px-event"> cta_click</label>
+              </div>
+            </div>
+            <button class="btn btn-primary btn-sm" onclick="addPixel()">Adicionar Pixel</button>
+          </div>
+        </div>
+
+        <!-- A/B Test Tab -->
+        <div class="tab-content" id="tab-abtest">
+          <div class="card">
+            <h3 style="margin-bottom:12px">Teste A/B</h3>
+            <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px">Configure variações deste vídeo. O embed code é único — o backend sorteia a variação automaticamente.</p>
+            <div id="abtest-info"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Preview sidebar -->
+      <div class="editor-sidebar">
+        <div class="card" style="padding:0;overflow:hidden">
+          <div id="player-preview" style="background:#000;aspect-ratio:16/9;display:flex;align-items:center;justify-content:center;color:#555;font-size:14px">
+            Preview do player
+          </div>
+        </div>
+        <p style="text-align:center;font-size:12px;color:var(--text-muted);margin-top:8px">Preview atualiza ao salvar</p>
+      </div>
+    </div>
+  </div>
+
+  <script src="assets/app.js"></script>
+  <script>
+    const videoId = getQueryParam('id');
+    if (!videoId) window.location.href = '/dashboard/';
+
+    let videoData = {};
+    let configData = {};
+    const debouncedSave = debounce(() => saveConfig(), 600);
+
+    // Tabs
+    document.querySelectorAll('#editor-tabs .tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('#editor-tabs .tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        tab.classList.add('active');
+        document.getElementById('tab-' + tab.dataset.tab)?.classList.add('active');
+      });
+    });
+
+    async function loadVideo() {
+      try {
+        const data = await api('GET', `/api/videos/${videoId}`);
+        videoData = data;
+        configData = data.config || {};
+
+        document.getElementById('video-title').value = data.title || '';
+        document.getElementById('status-badge').textContent = data.status;
+        document.getElementById('status-badge').className = `badge badge-${data.status}`;
+        document.getElementById('analytics-link').href = `/dashboard/analytics.html?id=${videoId}`;
+
+        populateConfig(configData);
+        loadDomains();
+        loadPixels();
+        updatePreview();
+      } catch (err) {
+        showToast('Erro ao carregar vídeo', 'error');
+      }
+    }
+
+    function populateConfig(c) {
+      const setVal = (id, val) => { const el = document.getElementById(id); if (el) { if (el.type === 'checkbox') el.checked = !!val; else el.value = val ?? ''; }};
+      setVal('cfg-autoplay', c.autoplay);
+      setVal('cfg-muted', c.muted);
+      setVal('cfg-loop', c.loop);
+      setVal('cfg-thumbnail', c.thumbnailUrl || '');
+      setVal('cfg-smart_autoplay', c.smart_autoplay);
+      setVal('cfg-progress_bar_mode', c.progress_bar_mode);
+      setVal('cfg-progress_bar_color', c.progress_bar_color || '#6C5CE7');
+      setVal('cfg-focused_fullscreen', c.focused_fullscreen);
+      setVal('cfg-seek_disabled', c.seek_disabled);
+      setVal('cfg-seek_disabled_until_seconds', c.seek_disabled_until_seconds);
+      setVal('cfg-skip_warning_text', c.skip_warning_text);
+      setVal('cfg-continue_watching_enabled', c.continue_watching_enabled);
+      setVal('cfg-cta_enabled', c.cta_enabled);
+      setVal('cfg-cta_text', c.cta_text);
+      setVal('cfg-cta_url', c.cta_url);
+      setVal('cfg-cta_color', c.cta_color || '#6C5CE7');
+      setVal('cfg-cta_time_seconds', c.cta_time_seconds);
+      setVal('cfg-cta_behavior', c.cta_behavior);
+      setVal('cfg-cta_scroll_enabled', c.cta_scroll_enabled);
+      setVal('cfg-elements_delay_seconds', c.elements_delay_seconds);
+      setVal('cfg-popup_enabled', c.popup_enabled);
+      setVal('cfg-fake_views_count', c.fake_views_count);
+      setVal('cfg-recovery_thumbnail_enabled', c.recovery_thumbnail_enabled);
+      setVal('cfg-recovery_thumbnail_url', c.recovery_thumbnail_url);
+      setVal('cfg-recovery_thumbnail_text', c.recovery_thumbnail_text);
+      setVal('cfg-primary_color', c.primary_color || '#6C5CE7');
+      setVal('cfg-skin', c.skin);
+      setVal('cfg-show_controls', c.show_controls !== false);
+      setVal('cfg-logo_url', c.logo_url);
+      setVal('cfg-logo_position', c.logo_position);
+      setVal('cfg-logo_opacity', c.logo_opacity || 0.7);
+      document.getElementById('opacity-val').textContent = c.logo_opacity || 0.7;
+
+      // Popup config
+      const pc = c.popup_config || {};
+      setVal('popup-time', pc.time_seconds);
+      setVal('popup-text', pc.text);
+      setVal('popup-image', pc.image_url);
+      setVal('popup-btn-text', pc.button_text);
+      setVal('popup-btn-url', pc.button_url);
+      setVal('popup-autoclose', pc.auto_close_seconds);
+
+      // Speed rates
+      const rates = c.speed_rates || [1];
+      document.querySelectorAll('.speed-check').forEach(cb => { cb.checked = rates.includes(parseFloat(cb.value)); });
+
+      // Fake comments
+      renderFakeComments(c.fake_comments || []);
+    }
+
+    function getConfigFromForm() {
+      const getVal = (id) => { const el = document.getElementById(id); if (!el) return undefined; if (el.type === 'checkbox') return el.checked; if (el.type === 'number') return el.value ? parseFloat(el.value) : 0; return el.value; };
+      const speeds = [...document.querySelectorAll('.speed-check:checked')].map(cb => parseFloat(cb.value));
+
+      return {
+        autoplay: getVal('cfg-autoplay'), muted: getVal('cfg-muted'), loop: getVal('cfg-loop'),
+        smart_autoplay: getVal('cfg-smart_autoplay'),
+        progress_bar_mode: getVal('cfg-progress_bar_mode'), progress_bar_color: getVal('cfg-progress_bar_color'),
+        focused_fullscreen: getVal('cfg-focused_fullscreen'),
+        seek_disabled: getVal('cfg-seek_disabled'), seek_disabled_until_seconds: getVal('cfg-seek_disabled_until_seconds'),
+        skip_warning_text: getVal('cfg-skip_warning_text'),
+        continue_watching_enabled: getVal('cfg-continue_watching_enabled'),
+        cta_enabled: getVal('cfg-cta_enabled'), cta_text: getVal('cfg-cta_text'), cta_url: getVal('cfg-cta_url'),
+        cta_color: getVal('cfg-cta_color'), cta_time_seconds: getVal('cfg-cta_time_seconds'),
+        cta_behavior: getVal('cfg-cta_behavior'), cta_scroll_enabled: getVal('cfg-cta_scroll_enabled'),
+        elements_delay_seconds: getVal('cfg-elements_delay_seconds'),
+        popup_enabled: getVal('cfg-popup_enabled'),
+        popup_config: {
+          time_seconds: getVal('popup-time'), text: getVal('popup-text'), image_url: getVal('popup-image'),
+          button_text: getVal('popup-btn-text'), button_url: getVal('popup-btn-url'), auto_close_seconds: getVal('popup-autoclose')
+        },
+        fake_views_count: getVal('cfg-fake_views_count'),
+        recovery_thumbnail_enabled: getVal('cfg-recovery_thumbnail_enabled'),
+        recovery_thumbnail_url: getVal('cfg-recovery_thumbnail_url'),
+        recovery_thumbnail_text: getVal('cfg-recovery_thumbnail_text'),
+        primary_color: getVal('cfg-primary_color'), skin: getVal('cfg-skin'),
+        show_controls: getVal('cfg-show_controls'), logo_url: getVal('cfg-logo_url'),
+        logo_position: getVal('cfg-logo_position'), logo_opacity: parseFloat(getVal('cfg-logo_opacity') || 0.7),
+        speed_rates: speeds.length > 0 ? speeds : [1],
+        fake_comments: configData.fake_comments || []
+      };
+    }
+
+    async function saveConfig() {
+      const config = getConfigFromForm();
+      try {
+        await api('PUT', `/api/videos/${videoId}/config`, config);
+        configData = config;
+
+        // Also save title
+        const title = document.getElementById('video-title').value;
+        if (title && title !== videoData.title) {
+          await api('PUT', `/api/videos/${videoId}`, { title });
+          videoData.title = title;
+        }
+        showToast('Salvo!');
+      } catch (err) {
+        showToast('Erro ao salvar', 'error');
+      }
+    }
+
+    // Title save
+    document.getElementById('video-title').addEventListener('change', saveConfig);
+
+    // Fake comments
+    function renderFakeComments(comments) {
+      const list = document.getElementById('fake-comments-list');
+      list.innerHTML = comments.map((c, i) => `
+        <div class="item-row">
+          <span class="label"><strong>${c.name}</strong> aos ${c.time}s: "${c.text}"</span>
+          <button class="remove-btn" onclick="removeFakeComment(${i})">✕</button>
+        </div>
+      `).join('');
+    }
+
+    function addFakeComment() {
+      const name = document.getElementById('fc-name').value;
+      const text = document.getElementById('fc-text').value;
+      const time = parseInt(document.getElementById('fc-time').value) || 0;
+      const avatar = document.getElementById('fc-avatar').value;
+      if (!name || !text) return showToast('Preencha nome e texto', 'error');
+      configData.fake_comments = configData.fake_comments || [];
+      configData.fake_comments.push({ name, text, time, avatar });
+      configData.fake_comments.sort((a, b) => a.time - b.time);
+      renderFakeComments(configData.fake_comments);
+      saveConfig();
+      document.getElementById('fc-name').value = '';
+      document.getElementById('fc-text').value = '';
+      document.getElementById('fc-time').value = '';
+      document.getElementById('fc-avatar').value = '';
+    }
+
+    function removeFakeComment(i) {
+      configData.fake_comments.splice(i, 1);
+      renderFakeComments(configData.fake_comments);
+      saveConfig();
+    }
+
+    // Domains
+    async function loadDomains() {
+      const domains = await api('GET', '/api/domains');
+      const list = document.getElementById('domains-list');
+      const videoDomains = domains.filter(d => !d.video_id || d.video_id === videoId);
+      list.innerHTML = videoDomains.map(d => `
+        <div class="item-row">
+          <span class="label">${d.domain}</span>
+          <span class="tag">${d.video_id ? 'Este vídeo' : 'Global'}</span>
+          <button class="remove-btn" onclick="removeDomain('${d.id}')">✕</button>
+        </div>
+      `).join('') || '<p style="color:var(--text-muted);font-size:13px">Nenhum domínio cadastrado (acesso aberto)</p>';
+    }
+
+    async function addDomain() {
+      const domain = document.getElementById('new-domain').value.trim();
+      if (!domain) return;
+      await api('POST', '/api/domains', { domain, video_id: videoId });
+      document.getElementById('new-domain').value = '';
+      loadDomains();
+      showToast('Domínio adicionado');
+    }
+
+    async function removeDomain(id) {
+      await api('DELETE', `/api/domains/${id}`);
+      loadDomains();
+    }
+
+    // Pixels
+    async function loadPixels() {
+      const pixels = await api('GET', `/api/pixels?video_id=${videoId}`);
+      const list = document.getElementById('pixels-list');
+      list.innerHTML = pixels.map(p => `
+        <div class="item-row">
+          <span class="tag">${p.pixel_type.toUpperCase()}</span>
+          <span class="label">${p.pixel_id_or_url}</span>
+          <span style="font-size:11px;color:var(--text-muted)">${(p.events || []).join(', ')}</span>
+          <button class="remove-btn" onclick="removePixel('${p.id}')">✕</button>
+        </div>
+      `).join('') || '<p style="color:var(--text-muted);font-size:13px">Nenhum pixel configurado</p>';
+    }
+
+    async function addPixel() {
+      const type = document.getElementById('px-type').value;
+      const id = document.getElementById('px-id').value.trim();
+      const events = [...document.querySelectorAll('.px-event:checked')].map(cb => cb.value);
+      if (!id) return showToast('Informe o ID do pixel', 'error');
+      await api('POST', '/api/pixels', { video_id: videoId, pixel_type: type, pixel_id_or_url: id, events });
+      document.getElementById('px-id').value = '';
+      loadPixels();
+      showToast('Pixel adicionado');
+    }
+
+    async function removePixel(id) {
+      await api('DELETE', `/api/pixels/${id}`);
+      loadPixels();
+    }
+
+    function updatePreview() {
+      const preview = document.getElementById('player-preview');
+      if (videoData.status === 'ready') {
+        preview.innerHTML = `<ecv-player video-id="${videoId}" style="width:100%"></ecv-player>`;
+        // Load player script if not loaded
+        if (!document.querySelector('script[src*="player.js"]')) {
+          const s = document.createElement('script');
+          s.src = '/player/player.js';
+          document.head.appendChild(s);
+        }
+      } else {
+        preview.innerHTML = `<div style="text-align:center;padding:20px;color:#666">Vídeo em status: ${videoData.status}</div>`;
+      }
+    }
+
+    function showEmbedModal() {
+      const code = getEmbedCode(videoId);
+      const speed = getSpeedCode(videoId);
+      showModal('Embed Code', `
+        <p style="margin-bottom:8px;font-size:13px;color:var(--text-muted)">Código Normal:</p>
+        <pre>${code.replace(/</g, '&lt;')}</pre>
+        <button class="btn btn-sm btn-primary" style="margin-top:8px" onclick="copyToClipboard(\`${code.replace(/`/g, '\\`')}\`)">Copiar</button>
+        <hr style="border-color:var(--border);margin:16px 0">
+        <p style="margin-bottom:8px;font-size:13px;color:var(--text-muted)">Speed Code (com preload):</p>
+        <pre>${speed.replace(/</g, '&lt;')}</pre>
+        <button class="btn btn-sm btn-secondary" style="margin-top:8px" onclick="copyToClipboard(\`${speed.replace(/`/g, '\\`')}\`)">Copiar Speed Code</button>
+      `);
+    }
+
+    loadVideo();
+  </script>
+</body>
+</html>

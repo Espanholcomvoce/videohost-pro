@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Upload - VideoHost Pro</title>
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+  <nav class="nav">
+    <div class="nav-logo">🎬 VideoHost Pro</div>
+    <div class="nav-links">
+      <a href="/dashboard/">Vídeos</a>
+      <a href="/dashboard/upload.html" class="active">Upload</a>
+      <a href="/dashboard/analytics.html">Analytics</a>
+      <a href="/dashboard/index.html?trash=1">Lixeira</a>
+    </div>
+    <div class="nav-user">
+      <button onclick="fetch('/api/auth/logout',{method:'POST',credentials:'include'}).then(()=>location.href='/dashboard/login.html')">Sair</button>
+    </div>
+  </nav>
+
+  <div class="container">
+    <div class="page-header">
+      <h1>Upload de Vídeo</h1>
+    </div>
+
+    <div class="upload-area" id="drop-zone">
+      <div class="icon">☁️</div>
+      <h2>Arraste o vídeo aqui ou clique para selecionar</h2>
+      <p>MP4, MOV, AVI, MKV, WebM — Máximo 2GB</p>
+      <input type="file" id="file-input" accept=".mp4,.mov,.avi,.mkv,.webm" multiple style="display:none">
+    </div>
+
+    <div id="upload-queue" class="upload-queue"></div>
+  </div>
+
+  <script src="assets/app.js"></script>
+  <script>
+    const dropZone = document.getElementById('drop-zone');
+    const fileInput = document.getElementById('file-input');
+    const queueEl = document.getElementById('upload-queue');
+    const CHUNK_SIZE = 10 * 1024 * 1024;
+
+    dropZone.addEventListener('click', () => fileInput.click());
+    dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('dragover'); });
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+    dropZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropZone.classList.remove('dragover');
+      handleFiles(e.dataTransfer.files);
+    });
+    fileInput.addEventListener('change', (e) => handleFiles(e.target.files));
+
+    function handleFiles(files) {
+      for (const file of files) {
+        uploadFile(file);
+      }
+    }
+
+    async function uploadFile(file) {
+      const itemId = 'upload-' + Date.now() + Math.random().toString(36).slice(2);
+      const itemHtml = `
+        <div class="upload-item" id="${itemId}">
+          <div style="flex:1">
+            <div class="name">${file.name} <span style="color:var(--text-muted);font-size:12px">(${(file.size / 1048576).toFixed(1)} MB)</span></div>
+            <div class="progress-bar" style="margin-top:8px"><div class="fill" id="${itemId}-fill" style="width:0%"></div></div>
+            <div class="upload-status" id="${itemId}-status">Iniciando...</div>
+          </div>
+        </div>
+      `;
+      queueEl.insertAdjacentHTML('beforeend', itemHtml);
+
+      const fill = document.getElementById(`${itemId}-fill`);
+      const status = document.getElementById(`${itemId}-status`);
+
+      try {
+        // 1. Init
+        status.textContent = 'Inicializando upload...';
+        const init = await api('POST', '/api/upload/init', {
+          filename: file.name,
+          fileSize: file.size,
+          mimeType: file.type
+        });
+        const { videoId, totalChunks } = init;
+
+        // 2. Upload chunks
+        const startTime = Date.now();
+        for (let i = 0; i < totalChunks; i++) {
+          const start = i * CHUNK_SIZE;
+          const end = Math.min(start + CHUNK_SIZE, file.size);
+          const chunk = file.slice(start, end);
+
+          const formData = new FormData();
+          formData.append('chunk', chunk);
+
+          await fetch(`/api/upload/chunk/${videoId}?index=${i}`, {
+            method: 'POST',
+            credentials: 'include',
+            body: formData
+          });
+
+          const pct = Math.round(((i + 1) / totalChunks) * 100);
+          fill.style.width = pct + '%';
+
+          const elapsed = (Date.now() - startTime) / 1000;
+          const uploaded = end;
+          const speed = (uploaded / elapsed / 1048576).toFixed(1);
+          status.textContent = `Enviando... ${pct}% — ${speed} MB/s`;
+        }
+
+        // 3. Complete
+        status.textContent = 'Finalizando upload...';
+        await api('POST', `/api/upload/complete/${videoId}`);
+
+        // 4. Poll transcoding
+        fill.style.background = 'var(--warning)';
+        status.innerHTML = '⏳ Processando vídeo...';
+
+        const pollInterval = setInterval(async () => {
+          try {
+            const st = await api('GET', `/api/upload/status/${videoId}`);
+            if (st.status === 'ready') {
+              clearInterval(pollInterval);
+              fill.style.background = 'var(--success)';
+              fill.style.width = '100%';
+              status.innerHTML = `✅ Pronto! <a href="/dashboard/editor.html?id=${videoId}" style="color:var(--primary)">Editar →</a>`;
+            } else if (st.status === 'error') {
+              clearInterval(pollInterval);
+              fill.style.background = 'var(--danger)';
+              status.innerHTML = '❌ Erro no processamento';
+            } else {
+              status.innerHTML = `⏳ ${st.status === 'processing' ? 'Transcodificando...' : 'Na fila...'}`;
+            }
+          } catch {}
+        }, 3000);
+
+      } catch (err) {
+        fill.style.background = 'var(--danger)';
+        status.innerHTML = `❌ Erro: ${err.message}`;
+      }
+    }
+  </script>
+</body>
+</html>
