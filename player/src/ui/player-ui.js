@@ -27,7 +27,7 @@ export class PlayerUI {
                 <svg class="ecv-icon-play" viewBox="0 0 24 24" width="22" height="22"><polygon points="5,3 19,12 5,21" fill="currentColor"/></svg>
                 <svg class="ecv-icon-pause" viewBox="0 0 24 24" width="22" height="22" style="display:none"><rect x="5" y="3" width="4" height="18" fill="currentColor"/><rect x="15" y="3" width="4" height="18" fill="currentColor"/></svg>
               </button>
-              <div class="ecv-time">0:00 / 0:00</div>
+              ${c.show_time !== false ? `<div class="ecv-time">0:00 / 0:00</div>` : ''}
               <div class="ecv-spacer"></div>
               <div class="ecv-volume-wrapper">
                 <button class="ecv-volume-btn" aria-label="Volume">🔊</button>
