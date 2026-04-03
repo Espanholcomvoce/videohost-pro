@@ -580,12 +580,18 @@
     function updatePreview() {
       const preview = document.getElementById('player-preview');
       if (videoData.status === 'ready') {
-        preview.innerHTML = `<ecv-player video-id="${videoId}" style="width:100%"></ecv-player>`;
-        // Load player script if not loaded
-        if (!document.querySelector('script[src*="player.js"]')) {
+        function injectPlayer() {
+          preview.innerHTML = `<ecv-player video-id="${videoId}" style="width:100%"></ecv-player>`;
+        }
+        if (window.customElements && window.customElements.get('ecv-player')) {
+          injectPlayer();
+        } else if (!document.querySelector('script[src*="player.js"]')) {
           const s = document.createElement('script');
           s.src = '/player/player.js';
+          s.onload = injectPlayer;
           document.head.appendChild(s);
+        } else {
+          window.customElements.whenDefined('ecv-player').then(injectPlayer);
         }
       } else {
         preview.innerHTML = `<div style="text-align:center;padding:20px;color:#666">Vídeo em status: ${videoData.status}</div>`;
