@@ -6,6 +6,43 @@ const { v4: uuidv4 } = require('uuid');
 
 router.use(requireAuth);
 
+// Registro de video pre-procesado localmente (sin transcoding en el servidor)
+router.post('/register', async (req, res) => {
+  try {
+    const { videoId, title, r2_path, hls_master_url, thumbnail_url, duration_seconds, file_size_bytes } = req.body;
+    if (!videoId || !title || !r2_path || !hls_master_url) {
+      return res.status(400).json({ error: 'Campos obrigatórios: videoId, title, r2_path, hls_master_url' });
+    }
+
+    await query(
+      `INSERT INTO videos (id, title, status, r2_path, hls_master_url, thumbnail_url, duration_seconds, file_size_bytes)
+       VALUES ($1, $2, 'ready', $3, $4, $5, $6, $7)
+       ON CONFLICT (id) DO UPDATE SET status='ready', hls_master_url=$4, thumbnail_url=$5, duration_seconds=$6, updated_at=NOW()`,
+      [videoId, title, r2_path, hls_master_url, thumbnail_url || null, duration_seconds || null, file_size_bytes || null]
+    );
+
+    const defaultConfig = {
+      autoplay: true, smart_autoplay: true, muted: true, loop: false,
+      progress_bar_mode: 'none', show_time: false,
+      focused_fullscreen: false, seek_disabled: false, seek_disabled_until_seconds: 0,
+      skip_warning_text: 'Não pule! A parte mais importante está chegando',
+      cta_enabled: false, cta_text: '', cta_url: '', cta_color: '#6C5CE7',
+      cta_time_seconds: 0, cta_behavior: 'new_tab',
+      continue_watching_enabled: true, fake_views_count: 0, fake_comments: [],
+      show_controls: true, skin: 'dark', primary_color: '#6C5CE7',
+      speed_rates: [0.75, 1, 1.25, 1.5, 2], show_volume: true
+    };
+    await query(
+      `INSERT INTO video_configs (video_id, config) VALUES ($1, $2) ON CONFLICT (video_id) DO NOTHING`,
+      [videoId, JSON.stringify(defaultConfig)]
+    );
+
+    res.json({ videoId, status: 'ready' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.get('/', async (req, res) => {
   const { folder_id, status, search, page = 1, limit = 20, include_deleted } = req.query;
   const offset = (page - 1) * limit;
