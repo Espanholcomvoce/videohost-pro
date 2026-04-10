@@ -15,15 +15,15 @@ services:
         value: /usr/bin/ffprobe
       - key: DATABASE_URL
         sync: false
-      - key: B2_KEY_ID
+      - key: R2_ACCOUNT_ID
         sync: false
-      - key: B2_APP_KEY
+      - key: R2_ACCESS_KEY_ID
         sync: false
-      - key: B2_BUCKET_NAME
+      - key: R2_SECRET_ACCESS_KEY
         sync: false
-      - key: B2_REGION
+      - key: R2_BUCKET_NAME
         sync: false
-      - key: B2_PUBLIC_URL
+      - key: R2_PUBLIC_URL
         sync: false
       - key: ADMIN_USER
         sync: false
