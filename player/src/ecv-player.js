@@ -69,12 +69,15 @@ if (!document.getElementById('ecv-player-styles')) {
   document.head.appendChild(style);
 }
 
-// Detect API base URL from script src
+// Detect API base URL from script src or data-api-base attribute
 function getApiBase() {
   const scripts = document.querySelectorAll('script[src]');
   for (const s of scripts) {
+    if (s.dataset.apiBase) return s.dataset.apiBase.replace(/\/$/, '');
     if (s.src.includes('player.js') || s.src.includes('ecv-player')) {
-      try { return new URL(s.src).origin; } catch {}
+      if (!s.src.startsWith(window.location.origin)) {
+        try { return new URL(s.src).origin; } catch {}
+      }
     }
   }
   return window.location.origin;

@@ -1,6 +1,6 @@
 const router = require('express').Router();
 const { query } = require('../db/queries');
-const { getSignedR2Url } = require('../services/r2');
+const { getR2PublicUrl } = require('../services/r2');
 const domainCheck = require('../middleware/domain-check');
 
 router.get('/:videoId', domainCheck, async (req, res) => {
@@ -53,8 +53,8 @@ router.get('/:videoId', domainCheck, async (req, res) => {
     const video = result.rows[0];
     const config = video.config || {};
 
-    // Generate signed URLs
-    const hlsUrl = video.hls_master_url ? await getSignedR2Url(video.hls_master_url, 3600) : null;
+    // Use public R2 URLs (bucket has public access enabled)
+    const hlsUrl = video.hls_master_url ? getR2PublicUrl(video.hls_master_url) : null;
     const thumbnailUrl = video.thumbnail_url;
 
     // Get pixels
@@ -76,7 +76,7 @@ router.get('/:videoId', domainCheck, async (req, res) => {
       status: video.status,
       hlsUrl,
       thumbnailUrl,
-      segmentBaseUrl: `/api/player-config/${resolvedVideoId}/segment`,
+      segmentBaseUrl: `${process.env.R2_PUBLIC_URL}/videos/${resolvedVideoId}`,
       ...config,
       pixels: pixels.rows,
       trafficFilters: filters.rows
