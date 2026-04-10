@@ -35,7 +35,7 @@ export class PlayerUI {
               </div>
               ${c.show_controls !== false ? `
               <select class="ecv-speed-select">
-                ${(c.speed_rates || [0.75, 1, 1.25, 1.5, 2]).map(r => `<option value="${r}" ${r === 1 ? 'selected' : ''}>${r}x</option>`).join('')}
+                ${(c.speed_rates || [0.75, 1, 1.25, 1.5, 2]).map(r => `<option value="${r}" ${r === (c.default_speed || 1) ? 'selected' : ''}>${r}x</option>`).join('')}
               </select>
               ` : ''}
               <button class="ecv-fullscreen-btn" aria-label="Tela cheia">⛶</button>

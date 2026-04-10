@@ -41,7 +41,7 @@ if (!document.getElementById('ecv-player-styles')) {
     .ecv-popup-text { margin:12px 0; font-size:15px; line-height:1.5; }
     .ecv-popup-btn { display:inline-block; padding:10px 24px; background:var(--ecv-primary,#6C5CE7); color:#fff; text-decoration:none; border-radius:6px; font-weight:600; }
     .ecv-skip-warning { position:absolute; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,.7); display:flex; align-items:center; justify-content:center; color:#fff; font-size:18px; font-weight:600; z-index:20; text-align:center; padding:20px; }
-    .ecv-recovery-overlay { position:absolute; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,.85); display:flex; align-items:center; justify-content:center; z-index:20; }
+    .ecv-recovery-overlay { position:absolute; top:0; left:0; right:0; bottom:0; background:var(--ecv-primary,#ff421c); display:flex; align-items:center; justify-content:center; z-index:20; border-radius:8px; }
     .ecv-recovery-content { text-align:center; color:#fff; }
     .ecv-recovery-content p { font-size:18px; margin-bottom:16px; }
     .ecv-recovery-buttons { display:flex; gap:12px; justify-content:center; }
@@ -184,6 +184,11 @@ class EcvPlayer extends HTMLElement {
         }
       }
     });
+
+    // Apply default speed
+    if (config.default_speed && config.default_speed !== 1) {
+      video.playbackRate = config.default_speed;
+    }
 
     // Autoplay
     if (config.autoplay) {

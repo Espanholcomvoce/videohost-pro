@@ -118,10 +118,16 @@ export class SmartPlay {
     const secs = Math.floor(savedTime % 60);
     overlay.innerHTML = `
       <div class="ecv-recovery-content">
-        <p>Continuar de ${mins}:${String(secs).padStart(2, '0')}?</p>
-        <div class="ecv-recovery-buttons">
-          <button class="ecv-btn-continue">Continuar</button>
-          <button class="ecv-btn-restart">Recomeçar</button>
+        <p style="font-size:18px;font-weight:700;margin-bottom:20px;text-align:center">Você já começou a assistir esse vídeo</p>
+        <div class="ecv-recovery-buttons" style="flex-direction:column;gap:12px">
+          <button class="ecv-btn-continue" style="display:flex;align-items:center;gap:8px;background:none;border:none;color:#fff;font-size:15px;font-weight:600;cursor:pointer">
+            <span style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border:2px solid #fff;border-radius:50%">▶</span>
+            Continuar assistindo?
+          </button>
+          <button class="ecv-btn-restart" style="display:flex;align-items:center;gap:8px;background:none;border:none;color:#fff;font-size:15px;font-weight:600;cursor:pointer">
+            <span style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border:2px solid #fff;border-radius:50%;font-size:12px">↺</span>
+            Assistir do início?
+          </button>
         </div>
       </div>
     `;
