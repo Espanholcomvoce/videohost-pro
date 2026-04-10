@@ -12,7 +12,7 @@ if (!document.getElementById('ecv-player-styles')) {
     .ecv-show { display: block !important; }
     .ecv-container { position:relative; width:100%; max-width:100%; background:#000; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; overflow:hidden; border-radius:8px; }
     .ecv-container.ecv-focused { position:fixed; top:0; left:0; width:100vw; height:100vh; z-index:999999; border-radius:0; }
-    .ecv-video-wrapper { position:relative; padding-top:56.25%; background:#000; }
+    .ecv-video-wrapper { position:relative; padding-top:56.25%; background:#000; transition:padding-top 0.1s; }
     .ecv-container.ecv-focused .ecv-video-wrapper { padding-top:0; height:100%; }
     .ecv-video { position:absolute; top:0; left:0; width:100%; height:100%; object-fit:contain; }
     .ecv-poster { position:absolute; top:0; left:0; width:100%; height:100%; background-size:cover; background-position:center; cursor:pointer; z-index:2; }
@@ -174,6 +174,16 @@ class EcvPlayer extends HTMLElement {
 
     // Fire pixels
     this._setupPixels(config.pixels || [], video);
+
+    // Auto-detect aspect ratio from video metadata
+    video.addEventListener('loadedmetadata', () => {
+      if (video.videoWidth && video.videoHeight) {
+        const wrapper = this.querySelector('.ecv-video-wrapper');
+        if (wrapper) {
+          wrapper.style.paddingTop = `${(video.videoHeight / video.videoWidth) * 100}%`;
+        }
+      }
+    });
 
     // Autoplay
     if (config.autoplay) {
